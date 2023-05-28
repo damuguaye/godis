@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func ReadQuery(client *GodisClient, query string) {
 }
 
 func TestInlineBuf(t *testing.T) {
-	client := CreateClient(0)
+	client := server.CreateClient(0)
 	ReadQuery(client, "set key val\r\n")
 	ok, err := handleInlineBuf(client)
 	assert.Nil(t, err)
@@ -38,10 +39,14 @@ func TestInlineBuf(t *testing.T) {
 }
 
 func TestBulkBuf(t *testing.T) {
-	client := CreateClient(0)
+	client := server.CreateClient(0)
 
 	ReadQuery(client, "*3\r\n$3\r\nset\r\n$3\r\nkey\r\n$3\r\nval\r\n")
 	ok, err := handleBulkBuf(client)
+	for _, i := range client.args {
+		fmt.Println("args: ", i.StrVal())
+	}
+
 	assert.Nil(t, err)
 	assert.Equal(t, true, ok)
 	assert.Equal(t, 3, len(client.args))
@@ -70,11 +75,12 @@ func TestBulkBuf(t *testing.T) {
 
 func TestProcessQueryBuf(t *testing.T) {
 	var conf Config
-	initServer(&conf)
+	server.initServer(&conf)
+	server.cmd = cmdTable
 	// just need real fd to support AddReply
-	client := CreateClient(server.fd)
+	client := server.CreateClient(server.fd)
 	ReadQuery(client, "*3\r\n$3\r\nset\r\n$3\r\nkey\r\n$3\r\nval\r\n")
-	err := ProcessQueryBuf(client)
+	err := server.ProcessQueryBuf(client)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(client.args))
 	key := CreateObject(GSTR, "key")
@@ -82,7 +88,7 @@ func TestProcessQueryBuf(t *testing.T) {
 	assert.Equal(t, "val", val.StrVal())
 
 	ReadQuery(client, "set key val2\r\n")
-	err = ProcessQueryBuf(client)
+	err = server.ProcessQueryBuf(client)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(client.args))
 	val2 := server.db.data.Get(key)

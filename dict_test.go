@@ -53,6 +53,10 @@ func TestRehash(t *testing.T) {
 		val := CreateObject(GSTR, fmt.Sprintf("v%v", i))
 		e := dict.Add(key, val)
 		assert.Nil(t, e)
+		en := dict.Find(key)
+		assert.NotNil(t, en)
+		assert.Equal(t, val, en.Val)
+		assert.Equal(t, key, en.Key)
 	}
 	assert.Equal(t, false, dict.isRehashing())
 
@@ -71,8 +75,10 @@ func TestRehash(t *testing.T) {
 	assert.Equal(t, false, dict.isRehashing())
 	assert.Equal(t, int64(INIT_SIZE*GROW_RATIO), dict.hts[0].size)
 	assert.Nil(t, dict.hts[1])
+	assert.Equal(t, dict.rehashidx, int64(-1))
 	for i := 0; i <= valve; i++ {
 		key := CreateObject(GSTR, fmt.Sprintf("k%v", i))
+		assert.NotNil(t, key)
 		entry = dict.Find(key)
 		assert.NotNil(t, entry)
 		assert.Equal(t, fmt.Sprintf("v%v", i), entry.Val.StrVal())

@@ -7,14 +7,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type FeType int
+type FeType int //file event
+type TeType int //time event
 
 const (
 	AE_READABLE FeType = 1
 	AE_WRITABLE FeType = 2
 )
-
-type TeType int
 
 const (
 	AE_NORMAL TeType = 1
@@ -34,8 +33,8 @@ type AeFileEvent struct {
 type AeTimeEvent struct {
 	id       int
 	mask     TeType
-	when     int64 //ms
-	interval int64 //ms
+	when     int64
+	interval int64
 	proc     TimeProc
 	extra    interface{}
 	next     *AeTimeEvent
@@ -51,12 +50,15 @@ type AeLoop struct {
 
 var fe2ep [3]uint32 = [3]uint32{0, unix.EPOLLIN, unix.EPOLLOUT}
 
+//unix.EPOLLIN 表示对应的文件描述符可以读
+//unix.EPOLLOUT 表示对应的文件描述符可以写
+
 func getFeKey(fd int, mask FeType) int {
 	if mask == AE_READABLE {
 		return fd
 	} else {
 		return fd * -1
-	}
+	} //将可写事件fd * -1，从而将可读可写放在一个map中
 }
 
 func (loop *AeLoop) getEpollMask(fd int) uint32 {
@@ -71,10 +73,8 @@ func (loop *AeLoop) getEpollMask(fd int) uint32 {
 }
 
 func (loop *AeLoop) AddFileEvent(fd int, mask FeType, proc FileProc, extra interface{}) {
-	// epoll ctl
 	ev := loop.getEpollMask(fd)
 	if ev&fe2ep[mask] != 0 {
-		// event is already registered
 		return
 	}
 	op := unix.EPOLL_CTL_ADD
@@ -87,18 +87,16 @@ func (loop *AeLoop) AddFileEvent(fd int, mask FeType, proc FileProc, extra inter
 		log.Printf("epoll ctr err: %v\n", err)
 		return
 	}
-	// ae ctl
 	var fe AeFileEvent
 	fe.fd = fd
 	fe.mask = mask
 	fe.proc = proc
 	fe.extra = extra
 	loop.FileEvents[getFeKey(fd, mask)] = &fe
-	log.Printf("ae add file event fd:%v, mask:%v\n", fd, mask)
+	log.Printf("ae add file event fd: %v, mask: %v\n", fd, mask)
 }
 
 func (loop *AeLoop) RemoveFileEvent(fd int, mask FeType) {
-	// epoll ctl
 	op := unix.EPOLL_CTL_DEL
 	ev := loop.getEpollMask(fd)
 	ev &= ^fe2ep[mask]
@@ -106,16 +104,16 @@ func (loop *AeLoop) RemoveFileEvent(fd int, mask FeType) {
 		op = unix.EPOLL_CTL_MOD
 	}
 	err := unix.EpollCtl(loop.fileEventFd, op, fd, &unix.EpollEvent{Fd: int32(fd), Events: ev})
+
 	if err != nil {
 		log.Printf("epoll del err: %v\n", err)
 	}
-	// ae ctl
 	loop.FileEvents[getFeKey(fd, mask)] = nil
-	log.Printf("ae remove file event fd:%v, mask:%v\n", fd, mask)
+	log.Printf("ae remove file event fd: %v, mask: %v\n", fd, mask)
 }
 
 func GetMsTime() int64 {
-	return time.Now().UnixNano() / 1e6
+	return time.Now().UnixNano() / 1e6 //ms
 }
 
 func (loop *AeLoop) AddTimeEvent(mask TeType, interval int64, proc TimeProc, extra interface{}) int {
@@ -134,20 +132,20 @@ func (loop *AeLoop) AddTimeEvent(mask TeType, interval int64, proc TimeProc, ext
 }
 
 func (loop *AeLoop) RemoveTimeEvent(id int) {
-	p := loop.TimeEvents
+	curr := loop.TimeEvents
 	var pre *AeTimeEvent
-	for p != nil {
-		if p.id == id {
+	for curr != nil {
+		if curr.id == id {
 			if pre == nil {
-				loop.TimeEvents = p.next
+				loop.TimeEvents = curr.next
 			} else {
-				pre.next = p.next
+				pre.next = curr.next
 			}
-			p.next = nil
+			curr.next = nil
 			break
 		}
-		pre = p
-		p = p.next
+		pre = curr
+		curr = curr.next
 	}
 }
 
@@ -166,12 +164,12 @@ func AeLoopCreate() (*AeLoop, error) {
 
 func (loop *AeLoop) nearestTime() int64 {
 	var nearest int64 = GetMsTime() + 1000
-	p := loop.TimeEvents
-	for p != nil {
-		if p.when < nearest {
-			nearest = p.when
+	curr := loop.TimeEvents
+	for curr != nil {
+		if curr.when < nearest {
+			nearest = curr.when
 		}
-		p = p.next
+		curr = curr.next
 	}
 	return nearest
 }
@@ -179,17 +177,15 @@ func (loop *AeLoop) nearestTime() int64 {
 func (loop *AeLoop) AeWait() (tes []*AeTimeEvent, fes []*AeFileEvent) {
 	timeout := loop.nearestTime() - GetMsTime()
 	if timeout <= 0 {
-		timeout = 10 // at least wait 10ms
+		timeout = 10
 	}
 	var events [128]unix.EpollEvent
-	n, err := unix.EpollWait(loop.fileEventFd, events[:], int(timeout))
-	if err != nil {
-		log.Printf("epoll wait warnning: %v\n", err)
-	}
+	n, _ := unix.EpollWait(loop.fileEventFd, events[:], int(timeout))
+
 	if n > 0 {
 		log.Printf("ae get %v epoll events\n", n)
 	}
-	// collect file events
+
 	for i := 0; i < n; i++ {
 		if events[i].Events&unix.EPOLLIN != 0 {
 			fe := loop.FileEvents[getFeKey(int(events[i].Fd), AE_READABLE)]
@@ -204,14 +200,13 @@ func (loop *AeLoop) AeWait() (tes []*AeTimeEvent, fes []*AeFileEvent) {
 			}
 		}
 	}
-	// collect time events
 	now := GetMsTime()
-	p := loop.TimeEvents
-	for p != nil {
-		if p.when <= now {
-			tes = append(tes, p)
+	curr := loop.TimeEvents
+	for curr != nil {
+		if curr.when <= now {
+			tes = append(tes, curr)
 		}
-		p = p.next
+		curr = curr.next
 	}
 	return
 }
@@ -226,7 +221,7 @@ func (loop *AeLoop) AeProcess(tes []*AeTimeEvent, fes []*AeFileEvent) {
 		}
 	}
 	if len(fes) > 0 {
-		log.Println("ae is processing file events")
+		//log.Printf("ae is processing file events\n")
 		for _, fe := range fes {
 			fe.proc(loop, fe.fd, fe.extra)
 		}

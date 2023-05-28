@@ -1,19 +1,23 @@
 package main
 
-type Node struct {
-	Val  *Gobj
-	next *Node
-	prev *Node
+import (
+	"fmt"
+)
+
+type ListNode struct {
+	val  *GObj
+	next *ListNode
+	prev *ListNode
 }
 
 type ListType struct {
-	EqualFunc func(a, b *Gobj) bool
+	EqualFunc func(a, b *GObj) bool
 }
 
 type List struct {
 	ListType
-	head   *Node
-	tail   *Node
+	head   *ListNode
+	tail   *ListNode
 	length int
 }
 
@@ -22,87 +26,131 @@ func ListCreate(listType ListType) *List {
 	list.ListType = listType
 	return &list
 }
+func ReListCreate(listType ListType) List {
+	var list List
+	list.ListType = listType
+	return list
+}
 
 func (list *List) Length() int {
 	return list.length
 }
 
-func (list *List) First() *Node {
+func (list *List) First() *ListNode {
 	return list.head
 }
 
-func (list *List) Last() *Node {
+func (list *List) PrintList() {
+	fmt.Println("begin", list.Length())
+	node := list.First()
+	var i int = 0
+	for node != nil {
+		i++
+		fmt.Println(i)
+		if node.val != nil {
+			fmt.Println(node.val.Type)
+			if node.val.Val == nil {
+				fmt.Println("NULL")
+			}
+
+		}
+
+		node = node.next
+	}
+}
+
+func (list *List) Last() *ListNode {
 	return list.tail
 }
 
-func (list *List) Find(val *Gobj) *Node {
-	p := list.head
-	for p != nil {
-		if list.EqualFunc(p.Val, val) {
+func (list *List) Find(val *GObj) *ListNode {
+	curr := list.head
+	for curr != nil {
+		if list.EqualFunc(curr.val, val) {
 			break
 		}
-		p = p.next
+		curr = curr.next
 	}
-	return p
+	return curr
 }
 
-func (list *List) Append(val *Gobj) {
-	var n Node
-	n.Val = val
+func (list *List) Append(val *GObj) {
+	var ln ListNode
+	ln.val = val
 	if list.head == nil {
-		list.head = &n
-		list.tail = &n
+		list.head = &ln
+		list.tail = &ln
 	} else {
-		n.prev = list.tail
-		list.tail.next = &n
+		ln.prev = list.tail
+		list.tail.next = &ln
 		list.tail = list.tail.next
 	}
-	list.length += 1
+	list.length++
 }
 
-func (list *List) LPush(val *Gobj) {
-	var n Node
-	n.Val = val
+func (list *List) LPush(val *GObj) {
+	var ln ListNode
+	ln.val = val
 	if list.head == nil {
-		list.head = &n
-		list.tail = &n
+		list.head = &ln
+		list.tail = &ln
 	} else {
-		n.next = list.head
-		list.head.prev = &n
-		list.head = &n
+		ln.next = list.head
+		list.head.prev = &ln
+		list.head = &ln
 	}
-	list.length += 1
+	list.length++
 }
 
-func (list *List) DelNode(n *Node) {
-	if n == nil {
+func (list *List) Lpop() *ListNode {
+	var retLN *ListNode
+	if list.length == 0 {
+		return nil
+	} else if list.length == 1 {
+		retLN = list.head
+		retLN.next = nil
+		retLN.prev = nil
+		list.head = nil
+		list.tail = nil
+	} else {
+		retLN = list.head
+		list.head = retLN.next
+		list.head.prev = nil
+		retLN.next = nil
+	}
+	list.length--
+	return retLN
+}
+
+func (list *List) DelNode(ln *ListNode) {
+	if ln == nil {
 		return
 	}
-	if list.head == n {
-		if n.next != nil {
-			n.next.prev = nil
+	if list.head == ln {
+		if ln.next != nil {
+			ln.next.prev = nil
 		}
-		list.head = n.next
-		n.next = nil
-	} else if list.tail == n {
-		if n.prev != nil {
-			n.prev.next = nil
+		list.head = ln.next
+		ln.next = nil
+	} else if list.tail == ln {
+		if ln.prev != nil {
+			ln.prev.next = nil
 		}
-		list.tail = n.prev
-		n.prev = nil
+		list.tail = ln.prev
+		ln.prev = nil
 	} else {
-		if n.prev != nil {
-			n.prev.next = n.next
+		if ln.prev != nil {
+			ln.prev.next = ln.next
 		}
-		if n.next != nil {
-			n.next.prev = n.prev
+		if ln.next != nil {
+			ln.next.prev = ln.prev
 		}
-		n.prev = nil
-		n.next = nil
+		ln.prev = nil
+		ln.next = nil
 	}
-	list.length -= 1
+	list.length--
 }
 
-func (list *List) Delete(val *Gobj) {
+func (list *List) Delete(val *GObj) {
 	list.DelNode(list.Find(val))
 }

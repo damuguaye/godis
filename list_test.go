@@ -17,18 +17,18 @@ func TestList(t *testing.T) {
 	list.Append(CreateObject(GSTR, "2"))
 	list.Append(CreateObject(GSTR, "3"))
 	assert.Equal(t, list.Length(), 3)
-	assert.Equal(t, list.First().Val.Val_.(string), "1")
-	assert.Equal(t, list.Last().Val.Val_.(string), "3")
+	assert.Equal(t, list.First().val.Val.(string), "1")
+	assert.Equal(t, list.Last().val.Val.(string), "3")
 
 	o := CreateObject(GSTR, "0")
 	list.LPush(o)
 	assert.Equal(t, list.Length(), 4)
-	assert.Equal(t, list.First().Val.Val_.(string), "0")
+	assert.Equal(t, list.First().val.Val.(string), "0")
 
 	list.LPush(CreateObject(GSTR, "-1"))
 	assert.Equal(t, list.Length(), 5)
 	n := list.Find(o)
-	assert.Equal(t, n.Val, o)
+	assert.Equal(t, n.val, o)
 
 	list.Delete(o)
 	assert.Equal(t, list.Length(), 4)
@@ -37,9 +37,15 @@ func TestList(t *testing.T) {
 
 	list.DelNode(list.First())
 	assert.Equal(t, list.Length(), 3)
-	assert.Equal(t, list.First().Val.Val_.(string), "1")
+	assert.Equal(t, list.First().val.Val.(string), "1")
 
 	list.DelNode(list.Last())
 	assert.Equal(t, list.Length(), 2)
-	assert.Equal(t, list.Last().Val.Val_.(string), "2")
+	assert.Equal(t, list.Last().val.Val.(string), "2")
+
+	list.LPush(CreateObject(GSTR, "9"))
+	assert.Equal(t, "9", list.Lpop().val.StrVal())
+	list.LPush(CreateObject(GSTR, "s"))
+	list.LPush(CreateObject(GSTR, "v"))
+	list.PrintList()
 }
