@@ -1,7 +1,13 @@
 ## 简易Redis
  - fork自[godis](https://github.com/archeryue/godis)
- - 完善了zset数据结构
+ - 完善了zset等数据结构
  - 加入了多个命令，其他文件也进行了一定的修改
+## 使用流程
+ - 进入文件目录，使用**go build**编译文件
+ - 可通过**config.json**设置端口
+ - 使用**myGodis config.json**开启redis-server
+ - 打开另一终端，利用**telnet 127.0.0.1 6767**或者官方redis-cli连接server，按需修改ip与port
+ - 连接成功后即可执行redis命令
 
 # 以下为原项目README.md
 
