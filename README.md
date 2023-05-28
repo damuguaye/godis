@@ -1,3 +1,10 @@
+## 简易Redis
+ - fork自[godis](https://github.com/archeryue/godis)
+ - 完善了zset数据结构
+ - 加入了多个命令，其他文件也进行了一定的修改
+
+### 以下为原项目README.md
+
 ## 项目背景
  - 本项目是用golang写的一个简略版本的redis-server，目的是用来讲解redis核心的技术原理。
  - 没有使用net库、goroutine、channel等golang特色工具。使用unix包的系统调用实现ae事件库，目的是为了复刻redis的设计。
